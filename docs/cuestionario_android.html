@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cuestionario SemaforoWifi</title>
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--tx:#1d2330;--mut:#5b6475;--bd:#d9dde5;--ac:#2563eb;--ok:#15803d;--okbg:#dcfce7;--ko:#b91c1c;--kobg:#fee2e2;--code:#eef1f6}
+@media (prefers-color-scheme:dark){:root{--bg:#12151c;--card:#1b202b;--tx:#e8ebf2;--mut:#9aa4b8;--bd:#2d3444;--ac:#6ea0ff;--ok:#6ee7a0;--okbg:#12301f;--ko:#fca5a5;--kobg:#3a1717;--code:#262d3b}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.5 system-ui,Segoe UI,Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 60px}
+h1{font-size:1.5rem;margin:.2em 0}
+p.sub{color:var(--mut);margin-top:0}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:8px;padding:8px 14px}
+button.on,button.pri{background:var(--ac);border-color:var(--ac);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:16px;margin:14px 0}
+.meta{color:var(--mut);font-size:.85rem;margin-bottom:6px}
+.q{font-weight:600;margin:0 0 12px}
+code{background:var(--code);padding:1px 5px;border-radius:4px;font-size:.9em}
+.opt{display:block;width:100%;text-align:left;margin:7px 0}
+.opt.ok{background:var(--okbg);border-color:var(--ok)}
+.opt.ko{background:var(--kobg);border-color:var(--ko)}
+.exp{margin-top:12px;padding:10px 12px;border-left:4px solid var(--ac);background:var(--code);border-radius:6px}
+.exp .ref{color:var(--mut);font-size:.85rem;margin-top:6px}
+.prog{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin:10px 0}
+.prog i{display:block;height:100%;background:var(--ac);width:0}
+.res{text-align:center}
+.res .n{font-size:2.4rem;font-weight:700}
+.hide{display:none}
+.row{display:flex;justify-content:space-between;gap:8px;margin-top:12px;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<main>
+<h1>Cuestionario: código Android de SemaforoWifi</h1>
+<p class="sub">Basado en <code>guia_estudio_codigo_android.md</code>. Elige un modo, responde y lee la explicación.</p>
+<div class="bar" id="modos">
+  <button data-m="test" class="on">Test (opción múltiple)</button>
+  <button data-m="oral">Preguntas orales (tarjetas)</button>
+</div>
+<div id="app"></div>
+</main>
+<script>
+const TEST=[
+{q:"En <code>ConnectScreen</code>, ¿qué pasaría si quitas <code>remember</code> de <code>var connecting by remember { mutableStateOf(false) }</code>?",
+ o:["Nada, funciona igual","Se recrearía en <code>false</code> en cada recomposición: no se vería «Conectando…» ni se deshabilitaría el botón","La app no compilaría","La IP se perdería al rotar la pantalla"],a:1,
+ e:"Sin <code>remember</code>, cada recomposición crea un estado nuevo con el valor inicial. Al poner <code>connecting = true</code> se recompone y vuelve a <code>false</code>.",r:"ConnectScreen.kt:34"},
+{q:"¿Qué diferencia hay entre <code>remember</code> y <code>rememberSaveable</code> y cuál usa la IP?",
+ o:["<code>rememberSaveable</code> también sobrevive a la recreación de la Activity (p. ej. rotar); la IP lo usa","<code>remember</code> sobrevive a rotar; la IP usa <code>remember</code>","Son idénticos","<code>rememberSaveable</code> guarda en el servidor"],a:0,
+ e:"<code>remember</code> solo conserva entre recomposiciones. <code>rememberSaveable</code> guarda en el estado de instancia, así que la IP escrita no se pierde al rotar.",r:"ConnectScreen.kt:33"},
+{q:"¿Por qué <code>ConnectScreen</code> recibe las lambdas <code>onTest</code> y <code>onConnected</code> en vez de abrir la Activity él mismo?",
+ o:["Porque Compose no permite usar <code>Intent</code>","Para que la pantalla solo dibuje y avise; la Activity decide la navegación y la pantalla es reutilizable/probable","Para que sea más rápido","Porque el manifest lo exige"],a:1,
+ e:"La pantalla no conoce <code>Intent</code>, <code>ControlActivity</code> ni <code>ArduinoApi</code>. El estado baja y los eventos suben.",r:"ConnectScreen.kt:29-31 · MainActivity.kt:20-26"},
+{q:"¿Cómo recibe <code>ControlActivity</code> la IP?",
+ o:["Variable global","Un <code>Intent</code> con <code>putExtra(EXTRA_IP, ip)</code> que lee con <code>getStringExtra</code>","SharedPreferences","Por el manifest"],a:1,
+ e:"<code>MainActivity</code> lanza el <code>Intent</code> con el extra; <code>ControlActivity</code> lo lee y, si es <code>null</code>, hace <code>finish()</code>.",r:"ControlActivity.kt:14,19-21"},
+{q:"¿Qué pasa si <code>ControlActivity</code> no está declarada en el manifest?",
+ o:["Se abre igual","El proyecto no compila","Al llamar <code>startActivity</code> lanza <code>ActivityNotFoundException</code> y la app se cierra","Se abre pero sin IP"],a:2,
+ e:"Compila, pero falla en ejecución al pulsar Conectar con una prueba exitosa.",r:"AndroidManifest.xml:24-27"},
+{q:"¿Qué hace que <code>MainActivity</code> aparezca en el lanzador del teléfono?",
+ o:["<code>exported=\"false\"</code>","El <code>intent-filter</code> con <code>MAIN</code> + <code>LAUNCHER</code> (y <code>exported=\"true\"</code>)","El permiso INTERNET","<code>parentActivityName</code>"],a:1,
+ e:"El filtro MAIN/LAUNCHER marca la Activity de entrada. <code>ControlActivity</code> es <code>exported=\"false\"</code>: solo la abre la propia app.",r:"AndroidManifest.xml:15-22"},
+{q:"¿Por qué la petición HTTP no puede ejecutarse en el hilo principal?",
+ o:["Porque HTTP es inseguro","Porque bloquearía la interfaz (y Android lanza <code>NetworkOnMainThreadException</code>)","Porque consume mucha batería","Porque Kotlin no lo permite"],a:1,
+ e:"El hilo principal dibuja la UI. La app usa <code>suspend</code> + <code>withContext(Dispatchers.IO)</code> para esperar sin congelar la pantalla.",r:"ArduinoApi.kt:12-13,20"},
+{q:"¿Qué hace <code>runCatching</code> en <code>ArduinoApi.request</code>?",
+ o:["Reintenta 3 veces","Convierte excepciones (timeout, sin red, HTTP ≠ 200) en <code>Result.failure</code> en vez de cerrar la app","Cierra la conexión","Cambia de hilo"],a:1,
+ e:"El cierre de la conexión lo hace el <code>finally</code> con <code>disconnect()</code>; el cambio de hilo, <code>withContext</code>.",r:"ArduinoApi.kt:14-24"},
+{q:"¿Qué dos líneas del manifest permiten hablar HTTP con el Arduino?",
+ o:["<code>INTERNET</code> y <code>usesCleartextTraffic=\"true\"</code>","<code>BLUETOOTH</code> y <code>exported</code>","<code>ACCESS_WIFI_STATE</code> y <code>allowBackup</code>","Solo <code>INTERNET</code>"],a:0,
+ e:"Desde Android 9 el HTTP sin cifrar está bloqueado por defecto; sin <code>usesCleartextTraffic</code> fallaría con «Cleartext HTTP traffic not permitted».",r:"AndroidManifest.xml:4,13"},
+{q:"¿La app muestra un diálogo de permiso de red al usuario?",
+ o:["Sí, al abrir la app","Sí, al pulsar Conectar","No: <code>INTERNET</code> es un permiso normal que se concede al instalar","Solo en Android 14"],a:2,
+ e:"Por eso no hay «rechazo» que manejar; sí hay que manejar la falta de red (Wi-Fi apagado, placa apagada, otra red).",r:"AndroidManifest.xml:4"},
+{q:"La placa se apaga con la pantalla de control abierta. ¿Qué ve el usuario?",
+ o:["La app se cierra","Nada cambia","Tras 3 fallos seguidos: «Sin conexión», botones deshabilitados; sigue reintentando y se recupera sola","Un diálogo de error"],a:2,
+ e:"El sondeo cada 2 s cuenta <code>fallos</code>; con 3 pasa a <code>connected=false</code>. Cuando responde de nuevo, <code>fallos=0</code> y vuelve a conectado.",r:"ControlScreen.kt:58-64"},
+{q:"La placa responde <code>ESTADO:AMARILLO</code>. ¿Qué hace la app?",
+ o:["Se cierra","Lo ignora sin avisar","Muestra «Respuesta no reconocida: …» (cortado a 40 caracteres) y sigue funcionando","Enciende ambas lámparas"],a:2,
+ e:"Cae en el <code>else</code> de <code>procesar</code>.",r:"ControlScreen.kt:42-47"},
+{q:"¿Qué valida realmente la prueba de conexión de <code>ConnectScreen</code>?",
+ o:["Que el dispositivo sea un semáforo","Que <code>GET /estado</code> responda HTTP 200 (cualquier cuerpo)","Que responda <code>ESTADO:VERDE</code>","Que haya Wi-Fi"],a:1,
+ e:"Otro servidor que responda 200 a <code>/estado</code> pasaría la prueba; el aviso aparecería luego en la pantalla de control.",r:"ArduinoApi.kt:21 · MainActivity.kt:20"},
+{q:"¿Para qué sirve <code>LaunchedEffect(ip)</code> en <code>ControlScreen</code>?",
+ o:["Para dibujar las lámparas","Para ejecutar el sondeo (corrutina) cada 2 s mientras la pantalla está activa, y relanzarlo si cambia la IP","Para guardar la IP","Para abrir otra Activity"],a:1,
+ e:"Es un efecto con corrutina ligada al ciclo de vida de la composición; se cancela al salir de la pantalla.",r:"ControlScreen.kt:58-64"},
+{q:"¿Qué rutas HTTP usa la app y qué devuelven?",
+ o:["<code>/on</code> y <code>/off</code>","<code>/estado</code>, <code>/rojo</code>, <code>/verde</code> → <code>ESTADO:VERDE</code> o <code>ESTADO:ROJO</code>","<code>/led?color=…</code> → JSON","<code>/semaforo</code> → HTML"],a:1,
+ e:"El firmware responde igual en UNO R4, ESP8266 y ESP32, por eso la app no distingue la placa.",r:"semaforo_wifi.ino · ArduinoApi.kt"}
+];
+const ORAL=[
+{q:"¿Qué pasaría si quitas el <code>remember</code> de esta línea?",a:"Cada recomposición crea un estado nuevo con el valor inicial (p. ej. <code>connecting</code> volvería a <code>false</code> al instante). Con <code>remember</code> sobrevive a recomposiciones; con <code>rememberSaveable</code> también a rotar la pantalla.",r:"ConnectScreen.kt:33-35"},
+{q:"¿Por qué esta pantalla recibe una lambda en vez de abrir la Activity directamente?",a:"Separa UI de navegación: la pantalla solo avisa, la Activity decide. Así es reutilizable, probable y no depende de <code>Intent</code>.",r:"ConnectScreen.kt:29-31 · MainActivity.kt:20-26"},
+{q:"¿Dónde se registra esta Activity y qué pasa si no está?",a:"En el <code>AndroidManifest.xml</code> dentro de <code>&lt;application&gt;</code>. Si falta, <code>startActivity</code> lanza <code>ActivityNotFoundException</code> y la app se cierra.",r:"AndroidManifest.xml:24-27"},
+{q:"¿Por qué <code>connect()</code> no puede ir en el hilo principal?",a:"Bloquearía la UI (hasta 3 s de timeout) y Android lo prohíbe con <code>NetworkOnMainThreadException</code>. Se usa <code>suspend</code> + <code>Dispatchers.IO</code>.",r:"ArduinoApi.kt:12-20"},
+{q:"¿En qué momento se pide el permiso y qué hace tu app si el usuario lo rechaza? (adaptada: esta app no usa Bluetooth)",a:"<code>INTERNET</code> es un permiso normal: se concede al instalar, no hay diálogo ni rechazo. Lo que sí se maneja es la falta de red: <code>Result.failure</code> → mensaje de error o «Sin conexión» tras 3 fallos.",r:"AndroidManifest.xml:4,13 · ControlScreen.kt:62"},
+{q:"¿Qué hace tu app si llega un mensaje con un formato que no espera?",a:"El <code>else</code> de <code>procesar</code> muestra «Respuesta no reconocida: …» (40 caracteres) y sigue funcionando. Un HTTP ≠ 200 se convierte en fallo con <code>error(\"HTTP …\")</code> + <code>runCatching</code>.",r:"ControlScreen.kt:42-47 · ArduinoApi.kt:21"},
+{q:"Cambio en vivo: cambia el texto del botón «Poner rojo».",a:"En <code>ControlScreen.kt:82</code>, cambia el texto dentro de <code>Text(\"Poner rojo\")</code>.",r:"ControlScreen.kt:82"},
+{q:"Cambio en vivo: cambia el color verde de la app.",a:"En <code>ControlScreen.kt:32</code> cambia <code>Color(0xFF2E7D32)</code> por otro valor ARGB.",r:"ControlScreen.kt:32"},
+{q:"Cambio en vivo: haz que el sondeo sea cada 5 s.",a:"En <code>ControlScreen.kt:63</code>, <code>delay(2000)</code> → <code>delay(5000)</code>.",r:"ControlScreen.kt:63"},
+{q:"Cambio en vivo: agrega un botón «Poner amarillo».",a:"Añade <code>Button(enabled = connected, onClick = { enviar(\"/amarillo\") }) { Text(\"Poner amarillo\") }</code>; en el firmware una ruta <code>/amarillo</code>; y que <code>procesar</code> acepte el nuevo estado.",r:"ControlScreen.kt:82-83 · semaforo_wifi.ino"}
+];
+const $=s=>document.querySelector(s),app=$("#app");
+let modo="test";
+document.querySelectorAll("#modos button").forEach(b=>b.onclick=()=>{modo=b.dataset.m;document.querySelectorAll("#modos button").forEach(x=>x.classList.toggle("on",x===b));modo==="test"?test():oral()});
+const mix=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+function test(){
+  const qs=mix(TEST).map(q=>{const idx=mix(q.o.map((_,i)=>i));return{...q,o:idx.map(i=>q.o[i]),a:idx.indexOf(q.a)}});
+  let i=0,ok=0,done=false;
+  function show(){
+    if(i>=qs.length){
+      app.innerHTML=`<div class="card res"><div class="n">${ok} / ${qs.length}</div><p>${ok===qs.length?"¡Perfecto!":ok>=qs.length*.7?"Bien, repasa las que fallaste.":"Repasa la guía y vuelve a intentarlo."}</p><button class="pri" id="r">Reintentar</button></div>`;
+      $("#r").onclick=test;return}
+    const q=qs[i];done=false;
+    app.innerHTML=`<div class="prog"><i style="width:${i/qs.length*100}%"></i></div>
+    <div class="card"><div class="meta">Pregunta ${i+1} de ${qs.length}</div><p class="q">${q.q}</p><div id="o"></div><div id="ex"></div>
+    <div class="row"><span class="meta">Aciertos: ${ok}</span><button class="pri hide" id="n">${i===qs.length-1?"Ver resultado":"Siguiente"}</button></div></div>`;
+    q.o.forEach((t,k)=>{const b=document.createElement("button");b.className="opt";b.innerHTML=t;b.onclick=()=>{
+      if(done)return;done=true;if(k===q.a)ok++;
+      [...$("#o").children].forEach((x,j)=>{x.disabled=true;if(j===q.a)x.classList.add("ok");else if(j===k)x.classList.add("ko")});
+      $("#ex").innerHTML=`<div class="exp">${k===q.a?"✅ Correcto. ":"❌ Incorrecto. "}${q.e}<div class="ref">${q.r}</div></div>`;
+      $("#n").classList.remove("hide")};$("#o").appendChild(b)});
+    $("#n").onclick=()=>{i++;show()};
+  }
+  show();
+}
+
+function oral(){
+  const qs=mix(ORAL);let i=0;
+  function show(){
+    const q=qs[i];
+    app.innerHTML=`<div class="prog"><i style="width:${(i+1)/qs.length*100}%"></i></div>
+    <div class="card"><div class="meta">Tarjeta ${i+1} de ${qs.length} · responde en voz alta antes de revelar</div><p class="q">${q.q}</p>
+    <button class="pri" id="v">Mostrar respuesta</button><div id="ex"></div>
+    <div class="row"><button id="p" ${i===0?"disabled":""}>Anterior</button><button id="n" ${i===qs.length-1?"disabled":""}>Siguiente</button></div></div>`;
+    $("#v").onclick=()=>{$("#ex").innerHTML=`<div class="exp">${q.a}<div class="ref">${q.r}</div></div>`;$("#v").classList.add("hide")};
+    $("#p").onclick=()=>{i--;show()};$("#n").onclick=()=>{i++;show()};
+  }
+  show();
+}
+test();
+</script>
+</body>
+</html>
