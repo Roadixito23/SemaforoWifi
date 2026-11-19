@@ -1,0 +1,101 @@
+EVALUACIÓN: ANDROID -> ARDUINO UNO R4 WIFI
+Aplicaciones Móviles para IoT · INACAP Coyhaique
+Proyecto: SemaforoWifi (Opción 2: app propia conectada)
+
+TRABAJO EN PAREJA (PILOTO Y COPILOTO)
+  - Dante Agüero      -> Copiloto de la parte Android: prompts e instrucciones para Android Studio.
+  - Mauricio Quiroga  -> Copiloto de la parte Arduino: prompts para el sketch y el circuito.
+
+Nota: se usó la misma conversación con la IA para el sketch y la app, para que la IP,
+las rutas y los mensajes calcen entre la tarjeta y el teléfono.
+
+====================================================================
+PARTE 1 · ARDUINO Y CIRCUITO (Mauricio Quiroga)
+====================================================================
+
+PROMPT 1.1 · Circuito
+-------------------------------------------------------------------
+Soy estudiante y uso una Arduino UNO R4 WiFi. Quiero conectar un LED con una
+resistencia de 220 ohm al pin 13 y a GND. Explícame el cableado paso a paso:
+qué pata del LED va al pin, dónde va la resistencia y cómo se conecta a GND en
+la protoboard. Dime también si puedo dejar conectados otros dos LED (amarillo en
+el pin 12 y verde en el pin 11) sin que molesten.
+
+PROMPT 1.2 · Sketch único (servidor HTTP)
+-------------------------------------------------------------------
+Actúa como profesor de Arduino. Necesito un sketch para Arduino UNO R4 WiFi
+(librería WiFiS3) que funcione junto con una app Android en la misma red Wi-Fi:
+
+- Se conecta a la red test con clave [CLAVE] (2,4 GHz). La clave debe
+  ir en un archivo aparte (wifi_secrets.h) para no subirla al repositorio.
+- Muestra su IP en el Monitor Serie a 115200 baudios.
+- Servidor HTTP en el puerto 80 con estas rutas:
+  * /mensaje?texto=...  muestra "Mensaje recibido: <texto>" en el Monitor Serie
+    (decodificando %20 y +) y responde {"ok":1}.
+  * /led?estado=1 y /led?estado=0  encienden o apagan el LED del pin 13, muestran
+    "LED encendido" o "LED apagado" en el Monitor Serie y responden {"led":1} o
+    {"led":0}.
+- Debe mantener las rutas que ya tenía mi semáforo: /estado, /rojo y /verde.
+
+Dame el código completo, dónde va cada archivo y los pasos para probarlo primero
+desde el navegador del teléfono.
+
+PROMPT 1.3 · Si el mensaje no llega
+-------------------------------------------------------------------
+Mi app envía a http://[IP], pero el Monitor Serie no muestra nada. En el
+navegador del teléfono la ruta [sí / no] funciona. ¿Qué reviso, en orden?
+
+PROMPT 1.4 · Si aparece un error en el IDE de Arduino
+-------------------------------------------------------------------
+Me aparece este error en el IDE de Arduino: [pegar el error completo]. ¿Qué
+significa y cómo lo corrijo? Muéstrame solo las líneas que cambian.
+
+====================================================================
+PARTE 2 · ANDROID STUDIO (Dante Agüero)
+====================================================================
+
+PROMPT 2.1 · App en Kotlin y Jetpack Compose
+-------------------------------------------------------------------
+Necesito una app en Android Studio con Kotlin y Jetpack Compose que hable con la
+placa por HTTP en la misma red Wi-Fi:
+
+- Un campo para la IP de la tarjeta.
+- Un campo de texto y un botón Enviar que llame a /mensaje?texto=...
+  (codificando el texto con URLEncoder).
+- Botones Encender y Apagar que llamen a /led?estado=1 y /led?estado=0.
+- Usar HttpURLConnection con corrutinas, fuera del hilo principal
+  (Dispatchers.IO), mostrando si funcionó o el error.
+- Dime qué agregar al AndroidManifest.
+
+PROMPT 2.2 · Adaptar mi app existente (Opción 2)
+-------------------------------------------------------------------
+Mi app SemaforoWifi ya existe. Te pego mi pantalla ControlScreen:
+[pegar el código de ControlScreen.kt]. Agrega ahí el campo de mensaje, el botón
+Enviar y los botones Encender y Apagar, sin cambiar el resto de mi diseño (los
+botones del semáforo, el estado de conexión y el sondeo de /estado).
+
+PROMPT 2.3 · Permisos de red (AndroidManifest)
+-------------------------------------------------------------------
+¿Qué debo agregar en el AndroidManifest para que mi app envíe peticiones HTTP a la
+IP de una placa Arduino en la red local? Muéstrame solo las líneas nuevas
+(permiso INTERNET y usesCleartextTraffic).
+
+PROMPT 2.4 · Si aparece un error en Android Studio
+-------------------------------------------------------------------
+Me aparece este error en Android Studio: [pegar el error completo]. ¿Qué significa
+y cómo lo corrijo? Muéstrame solo las líneas que cambian.
+
+PROMPT 2.5 · Para entender el código
+-------------------------------------------------------------------
+Explícame línea por línea qué hace este código, como si fuera mi primera vez
+programando: [pegar el código].
+
+====================================================================
+PRUEBA FINAL (en conjunto)
+====================================================================
+1. Mauricio carga el sketch y copia la IP desde el Monitor Serie (115200).
+2. Prueba en el navegador del teléfono: http://IP/led?estado=1
+3. Dante abre la app, pega la IP y envía un mensaje: el Monitor Serie debe mostrar
+   "Mensaje recibido: ..."
+4. Dante toca Encender: el Monitor Serie muestra "LED encendido" y el LED del
+   pin 13 se prende.
