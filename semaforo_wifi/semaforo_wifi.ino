@@ -1,11 +1,43 @@
-#include "WiFiS3.h"
+// Semaforo Wi-Fi: servidor HTTP que controla 3 LEDs (rojo, amarillo, verde).
+// Placas soportadas (se detectan solas al compilar):
+//   - Arduino UNO R4 WiFi      (libreria WiFiS3)
+//   - ESP8266 / NodeMCU        (libreria ESP8266WiFi)
+//   - ESP32                    (libreria WiFi; tambien sirve para simular en Wokwi)
+// Rutas HTTP: /estado, /rojo, /verde  (la app Android usa estas tres).
 
-#include "wifi_secrets.h"
+#if defined(ESP8266)
+  #include <ESP8266WiFi.h>
+  #define PLACA "ESP8266"
+  // NodeMCU: D5 = GPIO14, D6 = GPIO12, D7 = GPIO13 (evitan los pines de arranque D3, D4 y D8)
+  const int LED_ROJO = 14;
+  const int LED_AMARILLO = 12;
+  const int LED_VERDE = 13;
+  const unsigned long INTERVALO_REINTENTO = 20000;  // begin() no bloquea: damos tiempo a conectar
+#elif defined(ESP32)
+  #include <WiFi.h>
+  #define PLACA "ESP32"
+  const int LED_ROJO = 27;
+  const int LED_AMARILLO = 26;
+  const int LED_VERDE = 25;
+  const unsigned long INTERVALO_REINTENTO = 20000;
+#else
+  #include "WiFiS3.h"
+  #define PLACA "UNO R4 WiFi"
+  const int LED_ROJO = 13;
+  const int LED_AMARILLO = 12;
+  const int LED_VERDE = 11;
+  const unsigned long INTERVALO_REINTENTO = 5000;  // begin() bloquea unos segundos
+#endif
 
-const int LED_ROJO = 13;
-const int LED_VERDE = 12;
+// Credenciales: copia wifi_secrets.example.h a wifi_secrets.h (esta ignorado por git).
+// Sin ese archivo se usa la red abierta del simulador Wokwi.
+#if __has_include("wifi_secrets.h")
+  #include "wifi_secrets.h"
+#else
+  const char* WIFI_SSID = "Wokwi-GUEST";
+  const char* WIFI_PASS = "";
+#endif
 
-const unsigned long INTERVALO_REINTENTO = 5000;  // ms entre intentos
 unsigned long ultimoIntento = 0;
 
 WiFiServer server(80);
@@ -14,6 +46,7 @@ bool servidorIniciado = false;
 void mostrarVerde(bool verde) {
   digitalWrite(LED_VERDE, verde ? HIGH : LOW);
   digitalWrite(LED_ROJO, verde ? LOW : HIGH);
+  digitalWrite(LED_AMARILLO, LOW);   // reservado: la app aun no lo usa
 }
 
 const char* estadoActual() {
@@ -33,17 +66,17 @@ void atenderCliente() {
   WiFiClient client = server.available();
   if (!client) return;
 
-  // Leemos la petición completa; solo nos interesa la primera línea (ej. "GET /verde HTTP/1.1")
+  // Leemos la peticion completa; solo nos interesa la primera linea (ej. "GET /verde HTTP/1.1")
   String primeraLinea = "";
   String linea = "";
   bool esPrimera = true;
   unsigned long inicio = millis();
 
   while (client.connected() && millis() - inicio < 1000) {
-    if (!client.available()) continue;
+    if (!client.available()) { yield(); continue; }   // yield: evita el watchdog en ESP
     char c = client.read();
     if (c == '\n') {
-      if (linea.length() == 0) break;          // línea vacía = fin de cabeceras
+      if (linea.length() == 0) break;          // linea vacia = fin de cabeceras
       if (esPrimera) { primeraLinea = linea; esPrimera = false; }
       linea = "";
     } else if (c != '\r' && linea.length() < 80) {
@@ -72,13 +105,23 @@ void atenderCliente() {
 void setup() {
   Serial.begin(115200);
   pinMode(LED_ROJO, OUTPUT);
+  pinMode(LED_AMARILLO, OUTPUT);
   pinMode(LED_VERDE, OUTPUT);
   mostrarVerde(false);   // rojo al iniciar
 
+  Serial.println();
+  Serial.print("Placa: ");
+  Serial.println(PLACA);
+
+#if defined(ESP8266) || defined(ESP32)
+  WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+#else
   if (WiFi.status() == WL_NO_MODULE) {
     Serial.println("No se detecta el modulo WiFi");
     while (true);
   }
+#endif
 
   ultimoIntento = millis() - INTERVALO_REINTENTO;  // primer intento inmediato
 }
@@ -101,7 +144,15 @@ void loop() {
       ultimoIntento = millis();
       Serial.print("Conectando a ");
       Serial.println(WIFI_SSID);
-      WiFi.begin(WIFI_SSID, WIFI_PASS);   // bloquea unos segundos
+#if defined(ESP32)
+      if (strcmp(WIFI_SSID, "Wokwi-GUEST") == 0) {
+        WiFi.begin(WIFI_SSID, WIFI_PASS, 6);   // canal 6: en Wokwi conecta ~4 s mas rapido
+      } else {
+        WiFi.begin(WIFI_SSID, WIFI_PASS);
+      }
+#else
+      WiFi.begin(WIFI_SSID, WIFI_PASS);
+#endif
     }
   }
 }
