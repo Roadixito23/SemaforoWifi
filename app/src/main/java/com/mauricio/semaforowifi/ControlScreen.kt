@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 private val Rojo = Color(0xFFD32F2F)
 private val Verde = Color(0xFF2E7D32)
@@ -37,7 +40,18 @@ fun ControlScreen(ip: String, onDisconnect: () -> Unit) {
     var verde by remember { mutableStateOf(false) }
     var aviso by remember { mutableStateOf<String?>(null) }
     var fallos by remember { mutableIntStateOf(0) }
+    var mensaje by remember { mutableStateOf("") }
+    var resultado by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    // Envía una ruta que responde JSON ({"ok":1} o {"led":0/1}) y muestra el resultado
+    fun enviarSimple(ruta: String, exito: String) {
+        scope.launch {
+            ArduinoApi.request(ip, ruta)
+                .onSuccess { resultado = "$exito ($it)"; aviso = null }
+                .onFailure { resultado = null; aviso = "No se pudo enviar: ${it.message}" }
+        }
+    }
 
     fun procesar(respuesta: String) {
         when (respuesta) {
@@ -82,6 +96,28 @@ fun ControlScreen(ip: String, onDisconnect: () -> Unit) {
             Button(enabled = connected, onClick = { enviar("/rojo") }) { Text("Poner rojo") }
             Button(enabled = connected, onClick = { enviar("/verde") }) { Text("Poner verde") }
         }
+
+        OutlinedTextField(
+            value = mensaje,
+            onValueChange = { mensaje = it },
+            label = { Text("Mensaje") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Button(
+            enabled = connected && mensaje.isNotBlank(),
+            onClick = {
+                val texto = URLEncoder.encode(mensaje.trim(), "UTF-8")
+                enviarSimple("/mensaje?texto=$texto", "Mensaje enviado")
+            }
+        ) { Text("Enviar") }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(enabled = connected, onClick = { enviarSimple("/led?estado=1", "LED encendido") }) { Text("Encender") }
+            Button(enabled = connected, onClick = { enviarSimple("/led?estado=0", "LED apagado") }) { Text("Apagar") }
+        }
+
+        resultado?.let { Text(it, color = Verde) }
 
         aviso?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 

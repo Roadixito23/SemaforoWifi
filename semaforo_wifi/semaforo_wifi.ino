@@ -62,6 +62,30 @@ void responder(WiFiClient& client, const char* codigo, const char* cuerpo) {
   client.println(cuerpo);
 }
 
+// Decodifica %XX y '+' de un texto recibido por URL (ej. "hola%20mundo" -> "hola mundo")
+String decodificarUrl(const String& s) {
+  String r = "";
+  for (unsigned int i = 0; i < s.length(); i++) {
+    char c = s[i];
+    if (c == '+') {
+      r += ' ';
+    } else if (c == '%' && i + 2 < s.length() && isxdigit(s[i + 1]) && isxdigit(s[i + 2])) {
+      r += (char) strtol(s.substring(i + 1, i + 3).c_str(), NULL, 16);
+      i += 2;
+    } else {
+      r += c;
+    }
+  }
+  return r;
+}
+
+// Responde a /led?estado=1 o /led?estado=0 (enciende o apaga el LED del pin 13)
+void controlarLed(WiFiClient& client, bool encender) {
+  digitalWrite(LED_ROJO, encender ? HIGH : LOW);
+  Serial.println(encender ? "LED encendido" : "LED apagado");
+  responder(client, "200 OK", encender ? "{\"led\":1}" : "{\"led\":0}");
+}
+
 void atenderCliente() {
   WiFiClient client = server.available();
   if (!client) return;
@@ -86,7 +110,26 @@ void atenderCliente() {
 
   Serial.println(primeraLinea);
 
-  if (primeraLinea.startsWith("GET /verde")) {
+  if (primeraLinea.startsWith("GET /mensaje")) {
+    // Formato: GET /mensaje?texto=hola HTTP/1.1
+    int ini = primeraLinea.indexOf("texto=");
+    String texto = "";
+    if (ini >= 0) {
+      ini += 6;
+      int fin = primeraLinea.indexOf(' ', ini);
+      if (fin < 0) fin = primeraLinea.length();
+      int amp = primeraLinea.indexOf('&', ini);
+      if (amp >= 0 && amp < fin) fin = amp;
+      texto = decodificarUrl(primeraLinea.substring(ini, fin));
+    }
+    Serial.print("Mensaje recibido: ");
+    Serial.println(texto);
+    responder(client, "200 OK", "{\"ok\":1}");
+  } else if (primeraLinea.startsWith("GET /led?estado=1")) {
+    controlarLed(client, true);
+  } else if (primeraLinea.startsWith("GET /led?estado=0")) {
+    controlarLed(client, false);
+  } else if (primeraLinea.startsWith("GET /verde")) {
     mostrarVerde(true);
     responder(client, "200 OK", estadoActual());
   } else if (primeraLinea.startsWith("GET /rojo")) {
