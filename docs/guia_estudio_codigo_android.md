@@ -33,7 +33,7 @@ Protocolo con el firmware: `/estado`, `/rojo` y `/verde` devuelven `ESTADO:VERDE
 Líneas: `ConnectScreen.kt:33-35` y `ControlScreen.kt:36-39`.
 
 - `remember { mutableStateOf(...) }` guarda el valor entre recomposiciones. Compose puede ejecutar la función `@Composable` muchas veces; sin `remember`, cada ejecución crea un estado nuevo con el valor inicial.
-- Ejemplo con `connecting` (`ConnectScreen.kt:34`): al pulsar Conectar se pone `connecting = true`, eso provoca recomposición, y sin `remember` se vuelve a crear en `false`. Resultado: nunca se vería "Conectando…" ni la barra de progreso, y el botón no se deshabilitaría.
+- Ejemplo con `connecting` (`ConnectScreen.kt:34`): al pulsar Conectar se pone `connecting = true`, eso provoca recomposición, y sin `remember` se vuelve a crear en `false`. Resultado: nunca se vería "Conectando…" ni la barra de progreso, y el botón no se deshabilitaría. Importante: **no deja de compilar ni se cierra**; simplemente nunca se ve ese estado.
 - Diferencia con `rememberSaveable` (`ConnectScreen.kt:33`, la IP): además sobrevive a la recreación de la Activity (por ejemplo, al rotar la pantalla). Con `remember` normal, la IP escrita se perdería al rotar.
 
 ### P2. ¿Por qué esta pantalla recibe una lambda en vez de abrir la Activity directamente?
@@ -54,8 +54,10 @@ Líneas: `app/src/main/AndroidManifest.xml:15-27`.
 ### P4. ¿Por qué `connect()` no puede ir en el hilo principal?
 Líneas: `ArduinoApi.kt:12-13` (`withContext(Dispatchers.IO)`), `ArduinoApi.kt:20` (`conn.connect()`).
 
-- El hilo principal dibuja la interfaz. Una llamada de red puede tardar segundos (aquí hasta 3 s de timeout, líneas 16-17) y congelaría la pantalla; Android incluso la prohíbe y lanza `NetworkOnMainThreadException`.
-- Solución del proyecto: la función es `suspend` y salta al hilo de entrada/salida con `withContext(Dispatchers.IO)`. Quien la llama (`scope.launch` en `ConnectScreen.kt:63`, `LaunchedEffect` en `ControlScreen.kt:58`) es una corrutina, así que la UI sigue fluida mientras espera.
+- Son dos ideas distintas que conviene separar:
+  1. **Por qué es mala idea:** el hilo principal dibuja la interfaz. Una llamada de red puede tardar segundos (aquí hasta 3 s de timeout, líneas 16-17) y congelaría la pantalla.
+  2. **Por qué Android la prohíbe:** para proteger la UI, lanza `NetworkOnMainThreadException` de inmediato (no espera al timeout) en cuanto se intenta abrir la conexión desde el hilo principal, y la app se cierra.
+- Solución del proyecto: la función es `suspend` y **`withContext(Dispatchers.IO)` es lo que cambia de hilo**. Quien la llama es una corrutina que solo la *lanza*: `scope.launch` con `rememberCoroutineScope` en `ConnectScreen.kt:63` (por un clic) y `LaunchedEffect` en `ControlScreen.kt:58` (el sondeo). Nombra los dos si te preguntan: el scope/efecto lanza, `Dispatchers.IO` cambia de hilo.
 - `runCatching` (línea 14) convierte cualquier excepción (timeout, sin red, HTTP distinto de 200) en un `Result.failure`, en lugar de dejar que la app se cierre. El `finally` (línea 24) cierra la conexión siempre.
 
 ### P5. (Adaptada) En el original es sobre Bluetooth; aquí es el permiso de red
