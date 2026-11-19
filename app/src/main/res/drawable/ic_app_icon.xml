@@ -1,0 +1,31 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Background -->
+    <path
+        android:fillColor="#121212"
+        android:pathData="M12,0h84c6.6,0 12,5.4 12,12v84c0,6.6 -5.4,12 -12,12H12c-6.6,0 -12,-5.4 -12,-12V12C0,5.4 5.4,0 12,0z"/>
+
+    <!-- Traffic Light Housing -->
+    <path
+        android:fillColor="#212121"
+        android:pathData="M38,20h32c4.4,0 8,3.6 8,8v52c0,4.4 -3.6,8 -8,8H38c-4.4,0 -8,-3.6 -8,-8V28C30,23.6 33.6,20 38,20z"/>
+
+    <!-- Red Light -->
+    <path
+        android:fillColor="#D32F2F"
+        android:pathData="M54,34c5.5,0 10,4.5 10,10s-4.5,10 -10,10 -10,-4.5 -10,-10 4.5,-10 10,-10z"/>
+
+    <!-- Yellow Light -->
+    <path
+        android:fillColor="#FBC02D"
+        android:pathData="M54,54c5.5,0 10,4.5 10,10s-4.5,10 -10,10 -10,-4.5 -10,-10 4.5,-10 10,-10z"/>
+
+    <!-- Green Light -->
+    <path
+        android:fillColor="#2E7D32"
+        android:pathData="M54,74c5.5,0 10,4.5 10,10s-4.5,10 -10,10 -10,-4.5 -10,-10 4.5,-10 10,-10z"/>
+</vector>
